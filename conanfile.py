@@ -1,0 +1,88 @@
+import configparser
+import os
+from datetime import datetime
+from pathlib import Path
+
+import tomli
+from conan.errors import ConanInvalidConfiguration
+from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
+from conan.tools.files import copy
+from conan.tools.scm import Version
+
+from conan import ConanFile
+
+
+def get_project_version(source_dir):
+    pyproject_toml = source_dir / "pyproject.toml"
+    if not pyproject_toml.exists():
+        pyproject_toml = source_dir / ".." / "es" / "pyproject.toml"
+    if not pyproject_toml.exists():
+        raise RuntimeError("Failed to find pyproject.toml")
+
+    # Create header with version info
+    with open(pyproject_toml, "rb") as f:
+        project = tomli.load(f)
+        version = project["tool"]["poetry"]["version"]
+    return version
+
+
+class slashsynthConan(ConanFile):
+    name = "slashsynth"
+    version = get_project_version(Path(__file__).parent)
+    description = "Sound synthesizer from the ground up"
+    author = "Jaap Versteegh <j.r.versteegh@gmail.com>"
+    url = "https://example.com"
+
+    generators = "CMakeDeps"
+    settings = "os", "compiler", "build_type", "arch"
+    exports_sources = (
+        "pyproject.toml",
+        "CMakeLists.txt",
+        "src/slashsynth/*",
+        "include/slashsynth/*",
+        "conanfile.txt",
+    )
+
+    def requirements(self):
+        self.requires("fmt/11.2.0")
+
+    def validate(self):
+        compiler = self.settings.compiler
+        version = int(str(Version(self.settings.compiler.version)))
+
+        if compiler == "gcc" and version < 14:
+            raise ConanInvalidConfiguration("GCC needs to be version 14 or up")
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        tc.generator = "Ninja"
+        version, date = get_project_version_and_date(self.source_folder)
+        tc.variables["VERSION"] = version
+        tc.variables["DATE"] = date
+        tc.variables["BUILD_PYTHON"] = "0"
+        tc.variables["BUILD_TESTS"] = "0"
+        tc.variables["BUILD_SHARED"] = "1"
+        tc.variables["CMAKE_BUILD_TYPE"] = self.settings.build_type
+        if self.settings.os == "Windows":
+            tc.variables["CMAKE_POLICY_DEFAULT_CMP0091"] = "NEW"
+        tc.generate()
+
+    def package(self):
+        src = Path(self.source_folder)
+        bld = Path(self.build_folder)
+        pkg = Path(self.package_folder)
+        copy(self, "*.h", dst=pkg / "include", src=src / "include")
+        copy(self, "*.lib", dst=pkg / "lib", src=bld)
+        copy(self, "*.a", dst=pkg / "lib", src=bld)
+        copy(self, "*.so", dst=pkg / "lib", src=bld)
+
+    def package_info(self):
+        self.cpp_info.libs = ["slashsynth"]
+
+    def layout(self):
+        cmake_layout(self)
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()

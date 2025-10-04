@@ -1,0 +1,4 @@
+sources:
+  "2.0.1-7":
+    url: "https://github.com/andrewrk/libsoundio/archive/refs/tags/2.0.1-7.tar.gz"
+    sha256: "941f1347dabab02c88ef57e225b04587c3f69824e550e1045e4a9119cd657a4e"

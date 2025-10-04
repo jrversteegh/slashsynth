@@ -1,0 +1,12 @@
+/build
+/dist
+/.coverage
+/include/slashsynth/version.h
+/include/slashsynth/config.h
+/setup.py
+/CMakeSettings.json
+/CMakeUserPresets.json
+/src/pyslashsynth/*.so
+
+__pycache__
+*.pyc
