@@ -20,7 +20,7 @@ class SoundIoConan(ConanFile):
     license = "MIT"
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "http://libsound.io/"
-    topics = ("sound")
+    topics = ("sound",)
     package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
     options = {
@@ -31,10 +31,8 @@ class SoundIoConan(ConanFile):
         "shared": False,
         "fPIC": True,
     }
-    options_description = {
-    }
+    options_description = {}
     short_paths = True
-
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -43,7 +41,6 @@ class SoundIoConan(ConanFile):
     def configure(self):
         if self.options.shared:
             self.options.rm_safe("fPIC")
-
 
     def validate(self):
         pass
@@ -62,7 +59,6 @@ class SoundIoConan(ConanFile):
         tc.variables["BUILD_STATIC_LIBS"] = not self.options.shared
         tc.variables["BUILD_SHARED_LIBS"] = self.options.shared
         tc.variables["BUILD_TESTING"] = False
-
 
         tc.variables["MSVC_STATIC_CRT"] = is_msvc_static_runtime(self)
 
