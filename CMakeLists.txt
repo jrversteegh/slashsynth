@@ -81,6 +81,7 @@ target_link_libraries(slashsynth PRIVATE
   fmt::fmt
   Boost::program_options
   Boost::log
+  SoundIo::SoundIo
 )
 
 if(BUILD_PYTHON)
