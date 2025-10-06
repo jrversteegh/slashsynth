@@ -17,16 +17,19 @@ from setuptools.command import build_ext
 module_name = "pycxxslashsynth"
 
 if "CXX" in os.environ:
-    compiler = os.environ["CXX"]
+    compiler = os.environ["CXX"].strip()
 else:
     compiler = "g++"
 
+architecture = platform.machine()
 on_windows = platform.system().startswith("Win")
 script_dir = Path(__file__).absolute().parent
 source_dir = script_dir / "src" / "slashsynth"
 py_source_dir = script_dir / "src" / "pyslashsynth"
 pycxx_source_dir = script_dir / "src" / "pycxxslashsynth"
 build_dir = script_dir / "build"
+conan_dir = script_dir / "conan"
+conan_build_dir = build_dir / "conan"
 python = sys.executable
 python_dir = Path(os.path.dirname(python))
 cmake = python_dir / "cmake"
@@ -68,10 +71,19 @@ def build_module(build_type, config="", march=""):
     config_flag = f"--config {build_type}" if on_windows else ""
     march_define = f"-DBUILD_MARCH={march}" if march else ""
     version, date = get_project_version_and_date()
+    with dir_context(conan_build_dir):
+        if os.system(
+            f"{cmake} -DCMAKE_BUILD_TYPE={build_type}"
+            f" -DCMAKE_CXX_COMPILER={compiler}"
+            f" -DARCH={architecture}"
+            f" {conan_dir}"
+        ):
+            raise Exception("Failed to configure conan")
+
     with dir_context(build_dir):
         # CMAKE flag required by bzip2. Remove when no longer necessary.
         if os.system(
-            f"CMAKE_POLICY_VERSION_MINIMUM=3.5 conan install -of conan --profile={script_dir}/conan/slashsynth.profile --build=missing -s build_type={build_type} {script_dir}/conanfile.txt"
+            f"CMAKE_POLICY_VERSION_MINIMUM=3.5 conan install -of conan --profile={script_dir}/conan/slashsynth.profile --build=missing {script_dir}/conanfile.txt"
         ):
             raise Exception("Failed to run conan")
         if os.system(

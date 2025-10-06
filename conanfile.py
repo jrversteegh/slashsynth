@@ -13,7 +13,7 @@ from conan import ConanFile
 
 
 def get_project_version(source_dir):
-    pyproject_toml = source_dir / "pyproject.toml"
+    pyproject_toml = Path(source_dir) / "pyproject.toml"
     if not pyproject_toml.exists():
         pyproject_toml = source_dir / ".." / "es" / "pyproject.toml"
     if not pyproject_toml.exists():
@@ -38,6 +38,7 @@ class slashsynthConan(ConanFile):
     exports_sources = (
         "pyproject.toml",
         "CMakeLists.txt",
+        "cmake/*",
         "src/slashsynth/*",
         "include/slashsynth/*",
         "conanfile.txt",
@@ -45,6 +46,9 @@ class slashsynthConan(ConanFile):
 
     def requirements(self):
         self.requires("fmt/11.2.0")
+        self.requires("pybind11/2.13.6")
+        self.requires("boost/1.88.0")
+        self.requires("soundio/2.0.1-7")
 
     def validate(self):
         compiler = self.settings.compiler
@@ -56,9 +60,8 @@ class slashsynthConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.generator = "Ninja"
-        version, date = get_project_version_and_date(self.source_folder)
-        tc.variables["VERSION"] = version
-        tc.variables["DATE"] = date
+        tc.variables["VERSION"] = get_project_version(self.source_folder)
+        tc.variables["DATE"] = datetime.utcnow().strftime("%Y-%m-%d")
         tc.variables["BUILD_PYTHON"] = "0"
         tc.variables["BUILD_TESTS"] = "0"
         tc.variables["BUILD_SHARED"] = "1"

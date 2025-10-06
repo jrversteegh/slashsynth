@@ -1,0 +1,12 @@
+[settings]
+arch=@ARCH@
+build_type=@CMAKE_BUILD_TYPE@
+compiler=@COMPILER_FAMILY@
+compiler.cppstd=23
+compiler.libcxx=libstdc++11
+compiler.version=@COMPILER_MAJOR_VERSION@
+os=@CMAKE_SYSTEM_NAME@
+
+[buildenv]
+CC=@CMAKE_C_COMPILER@
+CXX=@CMAKE_CXX_COMPILER@

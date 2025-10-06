@@ -2,22 +2,27 @@
 
 #include <soundio/soundio.h>
 
+#include <exception>
+
 namespace slashsynth {
 
 struct SoundIO {
-  SoundIO(): sndio_{soundio_create()} {
+  SoundIO(): io_{soundio_create()} {
+    if (io_ == nullptr) {
+      throw std::runtime_error("Failed to create SoundIO instance");
+    }
   }
   SoundIO(SoundIO const&) = delete;
   SoundIO(SoundIO&&) = default;
   ~SoundIO() {
-    soundio_destroy(sndio_.get());
+    soundio_destroy(io_);
   }
   SoundIO& operator=(SoundIO const&) = delete;
   SoundIO& operator=(SoundIO&&) = default;
 private:
-  std::unique_ptr<SoundIo> sndio_;
+  SoundIo* io_;
 };
 
-}  // namespace ssynth
+}  // namespace slashsynth
 
 #endif

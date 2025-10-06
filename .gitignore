@@ -7,6 +7,7 @@
 /CMakeSettings.json
 /CMakeUserPresets.json
 /src/pyslashsynth/*.so
+/conan/slashsynth.profile
 
 __pycache__
 *.pyc
