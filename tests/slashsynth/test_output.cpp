@@ -16,14 +16,19 @@ struct Sample_data {
   Sample_data() {
     for (int i = 0; i < 100000; ++i) {
       float i_frac = i / 100000.f;
-      float n_frac = 1 - i_frac;
-      sine.push_back({square(i_frac * std::sin((0.02 * (1 + i_frac) * i))),
-                      square(n_frac * std::sin((0.02 * (1 + n_frac) * i))), 0.f,
-                      0.f, 0.f, 0.f});
+      float n_frac = 1.f - i_frac;
+      sine.push_back({
+          float(std::sin((0.03 * (1 + i_frac) * i)) * 0.4 * (1 + n_frac)),
+          float(std::sin((0.03 * (1 + n_frac) * i)) * 0.4 * (1 + i_frac)),
+          0.f,
+          0.f,
+          0.f,
+          0.f,
+      });
     }
-    for (int i = 0; i < 1000; ++i) {
-      sine[i] *= i / 1000.f;
-      sine[sine.size() - 1 - i] *= i / 1000.f;
+    for (int i = 0; i < 2000; ++i) {
+      sine[i] *= i / 2000.f;
+      sine[sine.size() - 1 - i] *= i / 2000.f;
     }
   }
   Samples sine;
