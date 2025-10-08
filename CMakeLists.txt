@@ -123,6 +123,7 @@ if(BUILD_TESTS)
     add_test(${NEW_TEST} tests/${NEW_TEST})
   endmacro()
 
+  new_test(test_clock)
   new_test(test_sound)
   new_test(test_output)
   new_test(test_slashsynth)
