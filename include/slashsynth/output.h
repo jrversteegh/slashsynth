@@ -208,12 +208,12 @@ struct SoundIO {
     if (io_ == nullptr) {
       throw std::runtime_error("Failed to create SoundIO instance");
     }
+    io_->app_name = "SlashSynth";
     if (auto error = soundio_connect(io_)) {
       sio::soundio_destroy(io_);
       throw std::runtime_error(fmt::format("SoundIO failed to connect: {}",
                                            sio::soundio_strerror(error)));
     }
-    io_->app_name = "slashsynth";
     sio::soundio_flush_events(io_);
   }
   SoundIO(SoundIO const&) = delete;

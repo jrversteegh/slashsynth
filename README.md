@@ -1,1 +1,4 @@
-slashsynth =======
+---
+title: SlashSynth
+---
+
