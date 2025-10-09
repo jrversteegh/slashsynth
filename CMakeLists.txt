@@ -126,6 +126,7 @@ if(BUILD_TESTS)
   new_test(test_clock)
   new_test(test_sound)
   new_test(test_output)
+  new_test(test_observer)
   new_test(test_slashsynth)
 endif()
 
