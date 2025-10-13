@@ -3,164 +3,148 @@
 
 #include "utils.h"
 
+#include <algorithm>
+#include <concepts>
+#include <functional>
+#include <type_traits>
+#include <vector>
+
 namespace slashsynth {
 
-struct ObservableBase;
-struct ObserverBase;
+using namespace std::placeholders;
 
-struct ObservationBase {
-  virtual void notify(int value) = 0;
-  virtual void link() = 0;
-  virtual void unlink() = 0;
-  virtual void set_observed(ObservableBase* observed) = 0;
-  virtual void set_observer(ObserverBase* observer) = 0;
-  virtual ~ObservationBase() {}
-};
-
+template <typename EventType>
 struct ObservableBase {
-  std::vector<ObservationBase*> observers{};
+  using Event_type = EventType;
+  using Subscription_handle = int;
+
+  struct Subscription {
+    Subscription_handle id;
+    ObservableBase* observable;
+  };
+
   ObservableBase() = default;
-  ObservableBase(ObservableBase const&): observers{} {}
-  ObservableBase(ObservableBase&& other): observers{} {
-    for (auto& observation: other.observers) {
-      observation->set_observed(this);
-    }
+  ObservableBase(ObservableBase const&) : observers_{} {}
+  ObservableBase(ObservableBase&& other)
+      : observers_{std::move(other.observers_)} {
+    update_connection_(&other, this);
   }
   ObservableBase& operator=(ObservableBase const&) {
     return *this;
   }
   ObservableBase& operator=(ObservableBase&& other) {
-    for (auto& observation: other.observers) {
-      observation->set_observed(this);
-    }
+    observers_ = std::move(other.observers_);
+    update_connection_(&other, this);
     return *this;
+  };
+  ~ObservableBase() {
+    update_connection_(this, nullptr);
   }
-  virtual ~ObservableBase() {
-    for (auto& observation: observers) {
-      observation->unlink();
-    }
-  }
-  void event(int value) {
-    for (auto& observation: observers) {
-      observation->notify(value);
+
+  template <typename ObserverType>
+  Subscription_handle subscribe(ObserverType& observer) {
+    Handler handler{
+        std::bind(&ObserverType::event_notification, &observer, _1, _2),
+        std::bind(&ObserverType::connection_notification, &observer, _1, _2),
     };
-  }
-};
-
-struct ObserverBase {
-  std::vector<ObservationBase*> observations{};
-  ObserverBase() = default;
-  ObserverBase(ObserverBase const&): observations{} { }
-  ObserverBase(ObserverBase&& other): observations{} {
-    for (auto& observation: other.observations) {
-      observation->set_observer(this);
-    }
-  }
-  ObserverBase& operator=(ObserverBase const&) {
-    return *this;
-  }
-  ObserverBase& operator=(ObserverBase&& other) {
-    for (auto& observation: other.observations) {
-      observation->set_observer(this);
-    }
-    return *this;
-  }
-  virtual ~ObserverBase() {
-    for (auto& observation: observations) {
-      observation->unlink();
-    }
-  }
-};
-
-template <typename Observable, typename Observer>
-struct Observation: ObservationBase {
-  Observation() = delete;
-  Observation(Observable& observable, Observer& observer): observed_(&observable), observer_(&observer) {
-    link();
-  }
-  Observation(Observation const& other): observed_(other.observed_), observer_(other.observer_) {
-    link();
-  }
-  Observation(Observation&& other): observed_(), observer_() {
-    other.unlink();
-    observed_ = std::move(other.observed_);
-    observer_ = std::move(other.observer_);
-    link();
-  }
-  Observation& operator=(Observation const& other) {
-    observed_ = other.observed_;
-    observer_ = other.observer_;
-    link();
-    return *this;
-  }
-  Observation& operator=(Observation&& other) {
-    other.unlink();
-    observed_ = std::move(other.observed_);
-    observer_ = std::move(other.observer_);
-    link();
-    return *this;
-  }
-  ~Observation() override {
-    unlink();
+    auto subscription = handler.subscription;
+    observers_.push_back(handler);
+    return subscription;
   }
 
-  void notify(int value) override {
-    if (observer_ != nullptr) {
-      observer_->notify(value);
+  void unsubscribe(Subscription_handle subscription) {
+    std::erase_if(observers_, [subscription](auto const& handler) {
+      return handler.subscription == subscription;
+    });
+  }
+
+protected:
+  void event(Event_type event_data) {
+    for (auto observer : observers_) {
+      observer.event_handler(this, event_data);
     }
   }
+
 private:
-  Observable* observed_;
-  Observer* observer_;
-  friend ObservableBase;
-  friend ObserverBase;
-
-  void link_observed() {
-    if (observed_ != nullptr) {
-      observed_->observers.push_back(this);
-    }
-  }
-  void link_observer() {
-    if (observer_ != nullptr) {
-      observer_->observations.push_back(this);
-    }
-  }
-  void link() override {
-    link_observed();
-    link_observer();
-  }
-  void unlink_observed() {
-    if (observed_ != nullptr) {
-      remove_one(observed_->observers, this);
-    }
-    observed_ = nullptr;
-  }
-  void unlink_observer() {
-    if (observer_ != nullptr) {
-      remove_one(observer_->observations, this);
-    }
-    observer_ = nullptr;
-  }
-  void unlink() override {
-    unlink_observed();
-    unlink_observer();
-  }
-  void set_observed(ObservableBase* observed) override {
-    if (observed != observed_) {
-      unlink_observed();
-      observed_ = dynamic_cast<Observable*>(observed);
-      link_observed();
-    }
-  }
-  void set_observer(ObserverBase* observer) override {
-    if (observer != observer_) {
-      unlink_observer();
-      observer_ = dynamic_cast<Observer*>(observer);
-      link_observer();
+  struct Handler {
+    std::function<void(ObservableBase*, EventType)> event_handler;
+    std::function<void(ObservableBase*, ObservableBase*)> connection_handler;
+    Subscription_handle subscription = next_subscription_++;
+  };
+  using Handlers = std::vector<Handler>;
+  Handlers observers_{};
+  static inline Subscription_handle next_subscription_ = 0;
+  void update_connection_(ObservableBase* previous, ObservableBase* current) {
+    for (auto& observer : observers_) {
+      observer.connection_handler(previous, current);
     }
   }
 };
 
+template <typename ObserverType, typename EventType>
+struct ObserverBase {
+  using Observable_type = ObservableBase<EventType>;
+
+  ObserverBase() = default;
+  ObserverBase(ObserverBase const& other) : subscriptions_{} {
+    subscribe_to_(other.subscriptions_);
+  }
+  ObserverBase(ObserverBase&& other) = delete;
+  ObserverBase& operator=(ObserverBase const& other) {
+    subscribe_to(other.subscriptions_);
+    return *this;
+  }
+  ObserverBase& operator=(ObserverBase&&) = delete;
+  ~ObserverBase() {
+    unsubscribe_from_(subscriptions_);
+  }
+
+  void event_notification(Observable_type* observed, EventType data) {
+    ObserverType& self = static_cast<ObserverType&>(*this);
+    if constexpr (requires { self.notify(observed, data); }) {
+      self.notify(observed, data);
+    } else if constexpr (requires { self.notify(data); }) {
+      self.notify(data);
+    } else {
+      static_assert(false, "ObserverType should have \"notify\" method");
+    }
+  }
+
+  void subscribe_to(Observable_type& observable) {
+    auto subscription = observable.subscribe(*this);
+    subscriptions_.emplace_back(subscription, &observable);
+  }
+
+  void connection_notification(Observable_type* old_observed,
+                               Observable_type* new_observed) {
+    for (auto& subscription : subscriptions_) {
+      if (subscription.observable == old_observed) {
+        subscription.observable = new_observed;
+      }
+    }
+    std::erase_if(subscriptions_, [](auto const& subscription) {
+      return subscription.observable == nullptr;
+    });
+  }
+
+private:
+  using Subscriptions = std::vector<typename Observable_type::Subscription>;
+  Subscriptions subscriptions_;
+  void subscribe_to_(Subscriptions const& subscriptions) {
+    for (auto& subscription : subscriptions) {
+      if (subscription.observable != nullptr) {
+        subscribe_to(*subscription.observable);
+      }
+    }
+  }
+  static void unsubscribe_from_(Subscriptions const& subscriptions) {
+    for (auto& subscription : subscriptions) {
+      if (subscription.observable != nullptr) {
+        subscription.observable->unsubscribe(subscription.id);
+      }
+    }
+  }
+};
 
 } // namespace slashsynth
 

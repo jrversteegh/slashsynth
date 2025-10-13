@@ -1,7 +1,6 @@
 #ifndef SLASHSYNTH_UTILS_H_INCLUDED__
 #define SLASHSYNTH_UTILS_H_INCLUDED__
 
-
 namespace slashsynth {
 
 void remove_one(auto& container, auto const& value) {
